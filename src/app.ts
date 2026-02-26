@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import identityRoutes from "./routes/identity.route"
 
 const app = express();
 
@@ -14,5 +15,6 @@ app.get("/", (_req, res) => {
     });
 });
 
+app.use("/", identityRoutes);
 
 export default app;
