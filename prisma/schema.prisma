@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["identity_reconciliation"]
+}
+
+enum LinkPrecedence {
+  primary
+  secondary
+
+  @@schema("identity_reconciliation")
+}
+
+model Contact {
+  id             Int             @id @default(autoincrement())
+  phoneNumber    String?
+  email          String?
+  linkedId       Int?
+  linkPrecedence LinkPrecedence
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([linkedId])
+  @@map("Contact")
+
+  @@schema("identity_reconciliation")
+}
