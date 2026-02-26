@@ -97,14 +97,28 @@ export class IdentityService {
         (input.phoneNumber && !existingPhones.has(input.phoneNumber));
 
       if (needsNewContact) {
-        await repo.createContact({
-          email: input.email,
-          phoneNumber: input.phoneNumber,
-          linkedId: finalPrimary.id,
-          linkPrecedence: LinkPrecedence.secondary
-        });
+        const freshCluster = await repo.findAllByPrimaryId(finalPrimary.id);
 
-        cluster = await repo.findAllByPrimaryId(finalPrimary.id);
+        const freshEmails = new Set(
+          freshCluster.map((c) => c.email).filter(Boolean) as string[]
+        );
+
+        const freshPhones = new Set(
+          freshCluster.map((c) => c.phoneNumber).filter(Boolean) as string[]
+        );
+
+        const stillNeeds =
+          (input.email && !freshEmails.has(input.email)) ||
+          (input.phoneNumber && !freshPhones.has(input.phoneNumber));
+
+        if (stillNeeds) {
+          await repo.createContact({
+            email: input.email,
+            phoneNumber: input.phoneNumber,
+            linkedId: finalPrimary.id,
+            linkPrecedence: LinkPrecedence.secondary
+          });
+        }
       }
 
       return this.buildResponse(cluster);
