@@ -1,12 +1,23 @@
 import { prisma } from "../prisma/client";
-import { Contact, LinkPrecedence, Prisma } from "@prisma/client";
+import {
+  Contact,
+  LinkPrecedence,
+  Prisma,
+  PrismaClient
+} from "@prisma/client";
 
 export class ContactRepository {
+  private db: PrismaClient | Prisma.TransactionClient;
+
+  constructor(dbClient?: Prisma.TransactionClient) {
+    this.db = dbClient ?? prisma;
+  }
+
   async findByEmailOrPhone(
     email?: string,
     phoneNumber?: string
   ): Promise<Contact[]> {
-    return prisma.contact.findMany({
+    return this.db.contact.findMany({
       where: {
         deletedAt: null,
         OR: [
@@ -17,23 +28,11 @@ export class ContactRepository {
     });
   }
 
-  async findByIds(ids: number[]): Promise<Contact[]> {
-    return prisma.contact.findMany({
-      where: {
-        id: { in: ids },
-        deletedAt: null
-      }
-    });
-  }
-
   async findAllByPrimaryId(primaryId: number): Promise<Contact[]> {
-    return prisma.contact.findMany({
+    return this.db.contact.findMany({
       where: {
         deletedAt: null,
-        OR: [
-          { id: primaryId },
-          { linkedId: primaryId }
-        ]
+        OR: [{ id: primaryId }, { linkedId: primaryId }]
       }
     });
   }
@@ -44,29 +43,15 @@ export class ContactRepository {
     linkedId?: number | null;
     linkPrecedence: LinkPrecedence;
   }): Promise<Contact> {
-    return prisma.contact.create({
-      data
-    });
-  }
-
-  async updateContact(
-    id: number,
-    data: Prisma.ContactUpdateInput
-  ): Promise<Contact> {
-    return prisma.contact.update({
-      where: { id },
-      data
-    });
+    return this.db.contact.create({ data });
   }
 
   async bulkUpdateToSecondary(
     ids: number[],
     primaryId: number
   ): Promise<void> {
-    await prisma.contact.updateMany({
-      where: {
-        id: { in: ids }
-      },
+    await this.db.contact.updateMany({
+      where: { id: { in: ids } },
       data: {
         linkPrecedence: LinkPrecedence.secondary,
         linkedId: primaryId
