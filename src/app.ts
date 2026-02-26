@@ -11,7 +11,8 @@ app.use(express.json());
 app.get("/", (_req, res) => {
     return res.status(200).json({
         success: true,
-        message: "Service is Running Please use this endpoint for API https://identity-recon.vercel.app/identify"
+        message: "Service is running successfully. Please use the following endpoint to access the API:",
+        apiEndpoint: "https://identity-recon.vercel.app/identify"
     });
 });
 
