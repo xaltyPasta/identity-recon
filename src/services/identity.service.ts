@@ -24,15 +24,13 @@ export class IdentityService {
     }
 
     return this.contactRepo.runTransaction(async (tx) => {
-      const repo = new ContactRepository();
+      const repo = new ContactRepository(tx);
 
-      // Step 1: Find initial matches
       const matches = await repo.findByEmailOrPhone(
         input.email,
         input.phoneNumber
       );
 
-      // Step 2: If no matches → create primary
       if (matches.length === 0) {
         const newPrimary = await repo.createContact({
           email: input.email,
@@ -44,7 +42,6 @@ export class IdentityService {
         return this.buildResponse([newPrimary]);
       }
 
-      // Step 3: Collect all root primary IDs
       const primaryIds = new Set<number>();
 
       for (const contact of matches) {
@@ -55,7 +52,6 @@ export class IdentityService {
         }
       }
 
-      // Step 4: Fetch full cluster
       let cluster: Contact[] = [];
 
       for (const pid of primaryIds) {
@@ -63,23 +59,18 @@ export class IdentityService {
         cluster = cluster.concat(group);
       }
 
-      // Remove duplicates
-      const uniqueClusterMap = new Map<number, Contact>();
-      cluster.forEach((c) => uniqueClusterMap.set(c.id, c));
-      cluster = Array.from(uniqueClusterMap.values());
+      const uniqueMap = new Map<number, Contact>();
+      cluster.forEach((c) => uniqueMap.set(c.id, c));
+      cluster = Array.from(uniqueMap.values());
 
-      // Step 5: Determine final primary (oldest createdAt)
-      const primaries = cluster.filter(
-        (c) => c.linkPrecedence === LinkPrecedence.primary
-      );
-
-      primaries.sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-      );
+      const primaries = cluster
+        .filter((c) => c.linkPrecedence === LinkPrecedence.primary)
+        .sort(
+          (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+        );
 
       const finalPrimary = primaries[0];
 
-      // Step 6: Merge other primaries if needed
       const otherPrimaries = primaries.filter(
         (p) => p.id !== finalPrimary.id
       );
@@ -91,7 +82,6 @@ export class IdentityService {
         );
       }
 
-      // Refresh cluster after merge
       cluster = await repo.findAllByPrimaryId(finalPrimary.id);
 
       const existingEmails = new Set(
@@ -102,7 +92,6 @@ export class IdentityService {
         cluster.map((c) => c.phoneNumber).filter(Boolean) as string[]
       );
 
-      // Step 7: Create new secondary if needed
       const needsNewContact =
         (input.email && !existingEmails.has(input.email)) ||
         (input.phoneNumber && !existingPhones.has(input.phoneNumber));
